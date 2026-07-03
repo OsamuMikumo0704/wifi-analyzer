@@ -4,3 +4,5 @@
 .kiro/
 AGENTS.md
 CLAUDE.md
+.gradle/
+app/build/
