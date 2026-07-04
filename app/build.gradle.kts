@@ -68,9 +68,40 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-tooling")
 
     testImplementation("junit:junit:4.13.2")
+    testImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
     androidTestImplementation("androidx.test.ext:junit:1.2.1")
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test:core:1.6.1")
     androidTestImplementation("androidx.room:room-testing:2.7.2")
     androidTestImplementation("org.jetbrains.kotlinx:kotlinx-coroutines-test:1.10.2")
+}
+
+val asciiTestClasspathRoot = File(System.getProperty("java.io.tmpdir"), "wifi-analyzer-test-classpath")
+
+val copyDebugUnitTestKotlinClasses by tasks.registering(Copy::class) {
+    dependsOn("compileDebugUnitTestKotlin")
+    from(layout.buildDirectory.dir("tmp/kotlin-classes/debugUnitTest"))
+    into(layout.buildDirectory.dir("intermediates/javac/debugUnitTest/compileDebugUnitTestJavaWithJavac/classes"))
+}
+
+val copyDebugClassesToAsciiPath by tasks.registering(Copy::class) {
+    dependsOn("compileDebugKotlin", "compileDebugUnitTestKotlin")
+    from(layout.buildDirectory.dir("tmp/kotlin-classes/debug")) {
+        into("debug")
+    }
+    from(layout.buildDirectory.dir("tmp/kotlin-classes/debugUnitTest")) {
+        into("debugUnitTest")
+    }
+    into(asciiTestClasspathRoot)
+}
+
+afterEvaluate {
+    tasks.named<org.gradle.api.tasks.testing.Test>("testDebugUnitTest").configure {
+        dependsOn(copyDebugUnitTestKotlinClasses)
+        dependsOn(copyDebugClassesToAsciiPath)
+        classpath += files(
+            asciiTestClasspathRoot.resolve("debug"),
+            asciiTestClasspathRoot.resolve("debugUnitTest"),
+        )
+    }
 }
