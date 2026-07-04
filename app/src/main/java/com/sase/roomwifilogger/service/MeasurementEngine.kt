@@ -17,10 +17,20 @@ data class MeasurementConfig(
     val sampleIntervalMillis: Long = 3_000L,
 )
 
+data class MeasurementSummary(
+    val avgRssi: Double,
+    val minRssi: Int,
+    val maxRssi: Int,
+    val sampleCount: Int,
+)
+
 sealed interface MeasurementState {
     data object Idle : MeasurementState
     data class Running(val elapsedMillis: Long, val sampleCount: Int) : MeasurementState
-    data class Completed(val recordId: Long) : MeasurementState
+    data class Completed(
+        val recordId: Long,
+        val summary: MeasurementSummary? = null,
+    ) : MeasurementState
     data class Failed(val error: MeasurementError) : MeasurementState
     data object Cancelled : MeasurementState
 }
@@ -69,37 +79,50 @@ class DefaultMeasurementEngine(
             elapsedMillis += config.sampleIntervalMillis
         }
 
-        val record = samples.toMeasurementEntity(roomId = roomId, memo = memo)
-        if (record == null) {
+        val result = samples.toMeasurementResult(roomId = roomId, memo = memo)
+        if (result == null) {
             emit(MeasurementState.Failed(MeasurementError.NoSamples))
             return@flow
         }
 
-        val recordId = measurementRepository.insert(record)
-        emit(MeasurementState.Completed(recordId))
+        val recordId = measurementRepository.insert(result.record)
+        emit(MeasurementState.Completed(recordId, result.summary))
     }
 
-    private fun List<WifiSnapshot>.toMeasurementEntity(
+    private fun List<WifiSnapshot>.toMeasurementResult(
         roomId: Long,
         memo: String,
-    ): MeasurementEntity? {
+    ): MeasurementResult? {
         if (isEmpty()) return null
         val lastSample = last()
         val rssiValues = map { it.rssiDbm }
         val avgRssi = round(rssiValues.average() * 10.0) / 10.0
 
-        return MeasurementEntity(
-            roomId = roomId,
-            measuredAt = lastSample.capturedAtMillis,
-            ssid = lastSample.ssid.orEmpty(),
-            bssid = lastSample.bssid.orEmpty(),
-            band = lastSample.band,
-            avgRssi = avgRssi,
-            minRssi = rssiValues.min(),
-            maxRssi = rssiValues.max(),
-            sampleCount = size,
-            linkSpeedMbps = lastSample.linkSpeedMbps,
-            memo = memo,
+        return MeasurementResult(
+            record = MeasurementEntity(
+                roomId = roomId,
+                measuredAt = lastSample.capturedAtMillis,
+                ssid = lastSample.ssid.orEmpty(),
+                bssid = lastSample.bssid.orEmpty(),
+                band = lastSample.band,
+                avgRssi = avgRssi,
+                minRssi = rssiValues.min(),
+                maxRssi = rssiValues.max(),
+                sampleCount = size,
+                linkSpeedMbps = lastSample.linkSpeedMbps,
+                memo = memo,
+            ),
+            summary = MeasurementSummary(
+                avgRssi = avgRssi,
+                minRssi = rssiValues.min(),
+                maxRssi = rssiValues.max(),
+                sampleCount = size,
+            ),
         )
     }
+
+    private data class MeasurementResult(
+        val record: MeasurementEntity,
+        val summary: MeasurementSummary,
+    )
 }
