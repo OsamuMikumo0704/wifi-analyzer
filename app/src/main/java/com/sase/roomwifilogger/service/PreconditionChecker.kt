@@ -35,9 +35,14 @@ class DefaultPreconditionChecker(
         when {
             !permissionStatus.hasFineLocationPermission() -> PreconditionResult.PermissionMissing
             !locationServiceStatus.isLocationServiceEnabled() -> PreconditionResult.LocationServiceOff
-            wifiStatusMonitor.status.value !is WifiStatus.Connected -> PreconditionResult.WifiDisconnected
+            !hasWifiConnection() -> PreconditionResult.WifiDisconnected
             else -> PreconditionResult.Ready
         }
+
+    private fun hasWifiConnection(): Boolean {
+        wifiStatusMonitor.start()
+        return wifiStatusMonitor.status.value is WifiStatus.Connected
+    }
 }
 
 class AndroidPermissionStatus(

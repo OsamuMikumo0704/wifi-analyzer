@@ -23,6 +23,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
@@ -34,8 +35,15 @@ import com.sase.roomwifilogger.data.db.RoomEntity
 import com.sase.roomwifilogger.ui.theme.RoomWifiLoggerTheme
 
 @Composable
-fun RoomListRoute(viewModel: RoomListViewModel) {
+fun RoomListRoute(
+    viewModel: RoomListViewModel,
+    onNavigate: (RoomListNavigation) -> Unit,
+) {
     val uiState by viewModel.uiState.collectAsState()
+    LaunchedEffect(viewModel) {
+        viewModel.navigation.collect(onNavigate)
+    }
+
     RoomListScreen(
         uiState = uiState,
         onAddClick = viewModel::showAddDialog,
