@@ -7,3 +7,4 @@ CLAUDE.md
 .gradle/
 local.properties
 app/build/
+*.apk
